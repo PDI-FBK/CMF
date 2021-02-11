@@ -1,6 +1,7 @@
 import numpy as np
 from pymining import itemmining
 
+from src.encoding.data_encoder import PADDING_VALUE
 from src.predictive_model.predictive_model import drop_columns
 
 
@@ -43,6 +44,7 @@ def _retrieve_confusion_matrix_ids(trace_ids, actual, predicted, encoder) -> dic
     # matrix format is (actual, predicted)
     confusion_matrix = {}
     classes = list(encoder.get_values('label')[0])
+    if PADDING_VALUE in classes: classes.remove(PADDING_VALUE)
     for act in classes:
         confusion_matrix[act] = {}
         for pred in classes:
@@ -67,29 +69,25 @@ def _filter_explanations(explanations, threshold=None):
 
 def _mine_frequent_patterns(confusion_matrix, filtered_explanations):
     mined_patterns = {}
-    for element in confusion_matrix:
-        print(element, [  # print importances for debug
-            [
-                str(feature_name) + ' // ' + str(value) + ' // ' + str(importance)
-                for feature_name, value, importance in filtered_explanations[tid]
-            ]
-            for tid in confusion_matrix[element]
-        ])
-        mined_patterns[element] = itemmining.relim(itemmining.get_relim_input([
-            [
-                str(feature_name) + '//' + str(value)  # + '_' + str(_tassellate_number(importance))
-                for feature_name, value, importance in filtered_explanations[tid]
-            ]
-            for tid in confusion_matrix[element]
-        ]), min_support=2)
-        mined_patterns[element] = sorted(
-            [
-                ([el.split('//') for el in list(key)], mined_patterns[element][key])
-                for key in mined_patterns[element]
-            ],
-            key=lambda x: x[1],
-            reverse=True
-        )
+    for actual in confusion_matrix:
+        mined_patterns[actual] = {}
+        for pred in confusion_matrix[actual]:
+            mined_patterns[actual][pred] = itemmining.relim(itemmining.get_relim_input([
+                [
+                    str(feature_name) + '//' + str(value)  # + '_' + str(_tassellate_number(importance))
+                    for feature_name, value, importance in filtered_explanations[tid]
+                ]
+                for tid in confusion_matrix[actual][pred]
+                if tid in filtered_explanations
+            ]), min_support=2)
+            mined_patterns[actual][pred] = sorted(
+                [
+                    ([el.split('//') for el in list(key)], mined_patterns[actual][pred][key])
+                    for key in mined_patterns[actual][pred]
+                ],
+                key=lambda x: x[1],
+                reverse=True
+            )
 
     return mined_patterns
 
