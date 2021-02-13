@@ -10,7 +10,9 @@ class Encoder:
     def __init__(self, df: DataFrame = None):
         self._encoder = {}
         self._label_dict = {}
+        self._label_dict_one_hot = {}
         self._label_dict_decoder = {}
+        self._label_dict_one_hot = {}
         for column in df:
             if column != 'trace_id':
                 if df[column].dtype != int or (df[column].dtype == int and np.any(df[column] < 0)):
@@ -20,6 +22,8 @@ class Encoder:
                     transforms = self._encoder[column].transform(classes)
                     self._label_dict[column] = dict(zip(classes, transforms))
                     self._label_dict_decoder[column] = dict(zip(transforms, classes))
+                    
+                    # todo: create one-hot mapping
 
     def encode(self, df: DataFrame) -> None:
         for column in df:

@@ -37,11 +37,11 @@ def run_full_pipeline(CONF=None):
             'padding': True,
             'feature_selection': EncodingType.SIMPLE.value,
             'labeling_type': LabelTypes.ATTRIBUTE_STRING.value,
-            'predictive_model': PredictionMethods.RANDOM_FOREST.value,
+            'predictive_model': PredictionMethods.LSTM.value,
             'explanator': ExplainerType.SHAP.value,
             'threshold': 13,
             'top_k': 10,
-            'hyperparameter_optimisation': True,
+            'hyperparameter_optimisation': False,
             'hyperparameter_optimisation_target': HyperoptTarget.F1.value,
             'hyperparameter_optimisation_epochs': 100
         }
@@ -62,7 +62,7 @@ def run_full_pipeline(CONF=None):
     )
 
     logger.debug('TRAIN PREDICTIVE MODEL')
-    predictive_model = PredictiveModel(CONF['predictive_model'], train_df, validate_df)
+    predictive_model = PredictiveModel(CONF, CONF['predictive_model'], train_df, validate_df)
 
     predictive_model.model, predictive_model.config = retrieve_best_model(
         predictive_model,
@@ -105,7 +105,7 @@ def run_full_pipeline(CONF=None):
             encoder.encode(shuffled_validate_df)
 
             logger.debug('RETRAIN-- TRAIN PREDICTIVE MODEL')
-            predictive_model = PredictiveModel(CONF['predictive_model'], shuffled_train_df, shuffled_validate_df)
+            predictive_model = PredictiveModel(CONF, CONF['predictive_model'], shuffled_train_df, shuffled_validate_df)
             try:
                 predictive_model.model, predictive_model.config = retrieve_best_model(
                     predictive_model,
