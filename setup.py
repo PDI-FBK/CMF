@@ -28,7 +28,7 @@ setup(
     ],
     url='https://github.com/PDI-FBK/LRP_CMF_integration',
     license='',
-    author=['Williams Rizzi', 'Please add your name here!'],
+    author=['Williams Rizzi', 'Sven Weinzierl'],
     author_email='wrizzi@fbk.eu',
     description='LRP CMF integration'
 )
