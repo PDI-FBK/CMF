@@ -1,7 +1,7 @@
 import itertools
 import logging
 
-from src.encoding.common import get_encoded_df, EncodingType
+from src.encoding.common import get_encoded_df, EncodingType, EncodingTypeAttribute
 from src.evaluation.common import evaluate
 from src.explanation.common import explain, ExplainerType
 from src.confusion_matrix_feedback.confusion_matrix_feedback import compute_feedback
@@ -36,6 +36,7 @@ def run_full_pipeline(CONF=None):
             'prefix_length': 5,
             'padding': True,
             'feature_selection': EncodingType.SIMPLE.value,
+            'attribute_encoding': EncodingTypeAttribute.ONEHOT.value,
             'labeling_type': LabelTypes.ATTRIBUTE_STRING.value,
             'predictive_model': PredictionMethods.LSTM.value,
             'explanator': ExplainerType.SHAP.value,

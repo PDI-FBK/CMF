@@ -19,6 +19,10 @@ class EncodingType(Enum):
     COMPLEX = 'complex'
     DECLARE = 'declare'
 
+class EncodingTypeAttribute(Enum):
+    LABEL = 'label'
+    ONEHOT = 'onehot'
+
 
 TRACE_TO_DF = {
     EncodingType.SIMPLE.value : simple_features,
@@ -59,7 +63,7 @@ def get_encoded_df(train_log: EventLog, validate_log: EventLog, test_log: EventL
     )
 
     logger.debug('INITIALISE ENCODER')
-    encoder = Encoder(df=train_df)
+    encoder = Encoder(df=train_df, attribute_encoding=CONF['attribute_encoding'])
 
     logger.debug('ENCODE')
     encoder.encode(df=train_df)
