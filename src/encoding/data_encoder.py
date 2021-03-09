@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
-from src.encoding.common import EncodingTypeAttribute
 
 PADDING_VALUE = '0'
 
@@ -18,7 +17,7 @@ class Encoder:
             if column != 'trace_id':
                 if df[column].dtype != int or (df[column].dtype == int and np.any(df[column] < 0)):
 
-                    if attribute_encoding == EncodingTypeAttribute.LABEL.value:
+                    if attribute_encoding == "label":
                         self._encoder[column] = LabelEncoder().fit(
                             sorted(pd.concat([pd.Series([str(PADDING_VALUE)]), df[column].apply(lambda x: str(x))])))
                         classes = self._encoder[column].classes_
@@ -26,8 +25,22 @@ class Encoder:
                         self._label_dict[column] = dict(zip(classes, transforms))
                         self._label_dict_decoder[column] = dict(zip(transforms, classes))
 
-                    elif attribute_encoding == EncodingTypeAttribute.ONEHOT.value:
-                        pass
+                    elif attribute_encoding == "onehot":
+
+                        # note: sklearn requires a 2D array and not a 1D array --> [[]]
+                        self._encoder[column] = OneHotEncoder().fit(
+                            np.array([sorted(pd.concat([pd.Series([str(PADDING_VALUE)]), df[column].apply(lambda x: str(x))]))]).reshape(-1, 1))
+
+                        # self._encoder[column] = OneHotEncoder(categories='auto').fit(
+                        #     np.array(sorted(pd.concat([pd.Series([str(PADDING_VALUE)]), df[column].apply(lambda x: str(x))]))).reshape(-1, 1))
+                        classes = self._encoder[column].categories_
+
+                        t = classes[0].reshape(-1, 1)
+                        transforms = self._encoder[column].transform(classes[0].reshape(-1, 1))
+                        self._label_dict[column] = dict(zip(classes[0], transforms))
+                        self._label_dict_decoder[column] = dict(zip(transforms, classes[0]))
+
+                        print(0)
 
                     else:
                         pass
