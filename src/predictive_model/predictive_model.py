@@ -110,12 +110,12 @@ class PredictiveModel:
                                                                     dropout=0.2))(main_input)
 
             # output layer
-            act_output = tf.keras.layers.Dense(self.train_label.shape[1],
+            output = tf.keras.layers.Dense(self.train_label.shape[1],
                                                activation='softmax',
-                                               name='act_output',
+                                               name='output',
                                                kernel_initializer='glorot_uniform')(b1)
 
-            model = tf.keras.models.Model(inputs=[main_input], outputs=[act_output])
+            model = tf.keras.models.Model(inputs=[main_input], outputs=[output])
             model.compile(loss={'output': 'categorical_crossentropy'}, optimizer='adam')
             model.summary()
 
@@ -126,6 +126,7 @@ class PredictiveModel:
         return model
 
     def _fit_model(self, model):
+
         if self.model_type == PredictionMethods.RANDOM_FOREST.value:
             model.fit(self.train_df, self.full_train_df['label'])
 
