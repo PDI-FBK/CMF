@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+import category_encoders
 
 PADDING_VALUE = '0'
 
@@ -27,20 +28,14 @@ class Encoder:
 
                     elif attribute_encoding == "onehot":
 
-                        # note: sklearn requires a 2D array and not a 1D array --> [[]]
-                        self._encoder[column] = OneHotEncoder().fit(
-                            np.array([sorted(pd.concat([pd.Series([str(PADDING_VALUE)]), df[column].apply(lambda x: str(x))]))]).reshape(-1, 1))
-
-                        # self._encoder[column] = OneHotEncoder(categories='auto').fit(
-                        #     np.array(sorted(pd.concat([pd.Series([str(PADDING_VALUE)]), df[column].apply(lambda x: str(x))]))).reshape(-1, 1))
-                        classes = self._encoder[column].categories_
-
-                        t = classes[0].reshape(-1, 1)
-                        transforms = self._encoder[column].transform(classes[0].reshape(-1, 1))
-                        self._label_dict[column] = dict(zip(classes[0], transforms))
-                        self._label_dict_decoder[column] = dict(zip(transforms, classes[0]))
-
-                        print(0)
+                        padded_values = pd.concat([pd.Series([str(PADDING_VALUE)]), df[column].apply(lambda x: str(x))])
+                        label_enc = pd.DataFrame(LabelEncoder().fit_transform(sorted(padded_values)))
+                        self._encoder[column] = OneHotEncoder(sparse=False).fit(label_enc)
+                        categories = self._encoder[column].categories_[0].reshape(-1, 1)
+                        transforms = [tuple(enc) for enc in self._encoder[column].transform(categories)]
+                        classes = list(padded_values.unique())
+                        self._label_dict[column] = dict(zip(classes, transforms))
+                        self._label_dict_decoder[column] = dict(zip(transforms, classes))
 
                     else:
                         pass
