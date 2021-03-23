@@ -2,9 +2,7 @@ import logging
 
 from hyperopt import STATUS_OK, STATUS_FAIL
 from pandas import DataFrame
-
 from sklearn.ensemble import RandomForestClassifier
-
 import tensorflow as tf
 import numpy as np
 
@@ -18,6 +16,33 @@ def drop_columns(df: DataFrame) -> DataFrame:
     df = df.drop(['trace_id', 'label'], 1)
     return df
 
+def get_tensor(CONF, df: DataFrame):
+
+    tuple_lists = df.to_numpy().tolist()
+    max_enc_length = max([len(onehot_enc) for onehot_enc in tuple_lists[0]])
+
+    tensor = np.zeros((len(tuple_lists),
+                             CONF['prefix_length'],
+                             max_enc_length))
+
+    for i_prefix, prefix in enumerate(tuple_lists):
+        for i_tuple_enc, tuple_enc in enumerate(prefix):
+            for i_enc_value, enc_value in enumerate(tuple_enc):
+                tensor[i_prefix, i_tuple_enc, i_enc_value] = enc_value
+
+    return tensor
+
+def shape_label_df(df: DataFrame):
+
+    labels_list = df['label'].tolist()
+    labels = np.zeros((len(labels_list),
+                       len(labels_list[0])))
+
+    for i_label_enc, label_enc in enumerate(labels_list):
+        for i_enc_value, enc_value in enumerate(label_enc):
+            labels[i_label_enc, i_enc_value] = enc_value
+
+    return labels
 
 class PredictiveModel:
 
@@ -32,6 +57,12 @@ class PredictiveModel:
         self.full_validate_df = validate_df
         self.validate_df = drop_columns(validate_df)
         self.validate_df_shaped = None
+
+        if model_type is PredictionMethods.LSTM.value:
+            self.train_tensor = get_tensor(CONF, self.train_df)
+            self.validate_tensor = get_tensor(CONF, self.validate_df)
+            self.train_label = shape_label_df(self.full_train_df)
+            self.validate_label = shape_label_df(self.full_validate_df)
 
     def train_and_evaluate_configuration(self, config, target):
         try:
@@ -62,22 +93,32 @@ class PredictiveModel:
     def _instantiate_model(self, config):
         if self.model_type == PredictionMethods.RANDOM_FOREST.value:
             model = RandomForestClassifier(**config)
+
         elif self.model_type == PredictionMethods.LSTM.value:
 
-            # get number of activities??
+            # input layer
+            main_input = tf.keras.layers.Input(shape=(self.train_tensor.shape[1], self.train_tensor.shape[2]),
+                                               name='main_input')
 
+            # hidden layer
+            b1 = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(config['n_hidden_units'],
+                                                                    use_bias=True,
+                                                                    implementation=1,
+                                                                    activation="tanh",
+                                                                    kernel_initializer='glorot_uniform',
+                                                                    return_sequences=False,
+                                                                    dropout=0.2))(main_input)
 
-            self.train_df_shaped = np.reshape((-1, self.CONF['prefix_length'], ))  # reshape from 2D to 3D
+            # output layer
+            act_output = tf.keras.layers.Dense(self.train_label.shape[1],
+                                               activation='softmax',
+                                               name='act_output',
+                                               kernel_initializer='glorot_uniform')(b1)
 
-            main_input = tf.keras.layers.Input(shape=(self.train_df_shaped[1], self.train_df_shaped[2]), name='main_input')
-            b1 = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(100, return_sequences=False, dropout=0.2))(main_input)
-
-            num_labels = len(set(self.full_train_df['label'].tolist()))
-            out_output = tf.keras.layers.Dense(num_labels, activation='softmax', name='output', kernel_initializer='glorot_uniform')(b1)
-
-            model = tf.keras.models.Model(inputs=[main_input], outputs=[out_output])
+            model = tf.keras.models.Model(inputs=[main_input], outputs=[act_output])
             model.compile(loss={'output': 'categorical_crossentropy'}, optimizer='adam')
             model.summary()
+
 
 
         else:
