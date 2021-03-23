@@ -131,17 +131,11 @@ class PredictiveModel:
 
         elif self.model_type == PredictionMethods.LSTM.value:
 
-            # label matrix
-            # exclude hyper-parameters
-
             early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
             lr_reducer = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, verbose=0,
                                                               mode='auto', min_delta=0.0001, cooldown=0, min_lr=0)
 
-            label = self.full_train_df['label']
-
-
-            model.fit(self.train_df_shaped, {'output': label},
+            model.fit(self.train_tensor, {'output': self.train_label},
                       validation_split=0.1,
                       verbose=1,
                       callbacks=[early_stopping, lr_reducer],
@@ -155,7 +149,7 @@ class PredictiveModel:
             scores = model.predict_proba(self.validate_df)[:, 1]
 
         elif self.model_type == PredictionMethods.LSTM.value:
-            predicted = ""
+            predicted = model.predict(self.validate_tensor)
             scores = ""
         else:
             raise Exception('unsupported model_type')

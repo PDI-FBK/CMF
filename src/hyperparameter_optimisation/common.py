@@ -21,6 +21,10 @@ def _get_space(model_type) -> dict:
             'max_features': hp.choice('max_features', ['sqrt', 'log2', 'auto', None]),
             'warm_start': True
         }
+    elif model_type is PredictionMethods.LSTM.value:
+        return {
+            'n_hidden_units': hp.choice('n_hidden_units', np.arange(80, 100, dtype=int)),
+        }
         # return {
         #     ### MANUALLY OPTIMISED PARAMS
         #     'n_estimators': 10,
