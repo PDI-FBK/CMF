@@ -1,6 +1,7 @@
 from enum import Enum
 
 from src.explanation.wrappers.shap_wrapper import shap_explain
+# from src.explanation.wrappers.lrp_wrapper import lrp_explain
 
 
 class ExplainerType(Enum):

@@ -73,7 +73,9 @@ def run_full_pipeline(CONF=None):
     )
 
     logger.debug('EVALUATE PREDICTIVE MODEL')
+    # todo: predict for keras vs. predict_proba for sklearn
     predicted = predictive_model.model.predict(drop_columns(test_df))
+    # todo: predict for keras vs. predict_proba for sklearn
     scores = predictive_model.model.predict_proba(drop_columns(test_df))[:, 1]
     actual = test_df['label']
     initial_result = evaluate(actual, predicted, scores)
