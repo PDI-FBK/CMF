@@ -46,7 +46,7 @@ def run_full_pipeline(CONF=None):
             'top_k': 10,
             'hyperparameter_optimisation': False,  # TODO: this parameter is not used
             'hyperparameter_optimisation_target': HyperoptTarget.F1.value,
-            'hyperparameter_optimisation_epochs': 2,  # 100 TODO set a higher value
+            'hyperparameter_optimisation_epochs': 10,  # 100 TODO set a higher value
         }
 
     logger.debug('LOAD DATA')
