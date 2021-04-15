@@ -23,7 +23,9 @@ def _get_space(model_type) -> dict:
         }
     elif model_type is PredictionMethods.LSTM.value:
         return {
-            'n_hidden_units': hp.choice('n_hidden_units', np.arange(80, 100, dtype=int)),
+            'activation': hp.choice('activation', ['linear', 'tanh', 'relu']),
+            'kernel_initializer': hp.choice('kernel_initializer', ['glorot_uniform']),
+            'optimizer': hp.choice('optimizer', ['adam', 'nadam', 'rmsprop'])
         }
         # return {
         #     ### MANUALLY OPTIMISED PARAMS
@@ -58,13 +60,13 @@ def _get_space(model_type) -> dict:
         raise Exception('unsupported model_type')
 
 
-def retrieve_best_model(predicitive_model, model_type, max_evaluations, target):
+def retrieve_best_model(predictive_model, model_type, max_evaluations, target):
 
     space = _get_space(model_type)
     trials = Trials()
 
     fmin(
-        lambda x: predicitive_model.train_and_evaluate_configuration(config=x, target=target),
+        lambda x: predictive_model.train_and_evaluate_configuration(config=x, target=target),
         space,
         algo=hyperopt.tpe.suggest,
         max_evals=max_evaluations,

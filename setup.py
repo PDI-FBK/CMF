@@ -23,12 +23,13 @@ setup(
         'shap',
         'numpy',
         'enum',
-        'hyperopt'
-        'pathlib'
+        'hyperopt',
+        'pathlib',
+        'tensorflow'
     ],
     url='https://github.com/PDI-FBK/LRP_CMF_integration',
     license='',
-    author=['Williams Rizzi', 'Sven Weinzierl'],
+    author=['Williams Rizzi', 'Sven Weinzierl', 'Sandra Zilker'],
     author_email='wrizzi@fbk.eu',
     description='LRP CMF integration'
 )

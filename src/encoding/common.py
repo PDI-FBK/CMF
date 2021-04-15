@@ -24,6 +24,11 @@ class EncodingTypeAttribute(Enum):
     ONEHOT = 'onehot'
 
 
+class EncodingTypeAttribute(Enum):
+    LABEL = 'label'
+    ONEHOT = 'onehot'
+
+
 TRACE_TO_DF = {
     EncodingType.SIMPLE.value : simple_features,
     # EncodingType.FREQUENCY.value : frequency_features,

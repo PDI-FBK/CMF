@@ -1,5 +1,6 @@
 import itertools
 import logging
+import numpy as np
 
 from src.encoding.common import get_encoded_df, EncodingType, EncodingTypeAttribute
 from src.evaluation.common import evaluate
@@ -9,10 +10,11 @@ from src.confusion_matrix_feedback.randomise_features import randomise_features
 from src.hyperparameter_optimisation.common import retrieve_best_model, HyperoptTarget
 from src.labeling.common import LabelTypes
 from src.log.common import get_log
-from src.predictive_model.common import PredictionMethods
+from src.predictive_model.common import PredictionMethods, get_tensor
 from src.predictive_model.predictive_model import PredictiveModel, drop_columns
 
 logger = logging.getLogger(__name__)
+
 
 def dict_mean(dict_list):
     mean_dict = {}
@@ -34,17 +36,17 @@ def run_full_pipeline(CONF=None):
                     'OUTPUT_DATA': '../output_data',
                 },
             'prefix_length': 5,
-            'padding': True,
+            'padding': True,  # TODO: why use of padding?
             'feature_selection': EncodingType.SIMPLE.value,
-            'attribute_encoding': EncodingTypeAttribute.ONEHOT.value,
+            'attribute_encoding': EncodingTypeAttribute.ONEHOT.value,  # LABEL, ONEHOT
             'labeling_type': LabelTypes.ATTRIBUTE_STRING.value,
-            'predictive_model': PredictionMethods.LSTM.value,
-            'explanator': ExplainerType.SHAP.value,
+            'predictive_model': PredictionMethods.LSTM.value,  # RANDOM_FOREST, LSTM
+            'explanator': ExplainerType.LRP.value,  # SHAP, LRP
             'threshold': 13,
             'top_k': 10,
-            'hyperparameter_optimisation': False,
+            'hyperparameter_optimisation': False,  # TODO: this parameter is not used
             'hyperparameter_optimisation_target': HyperoptTarget.F1.value,
-            'hyperparameter_optimisation_epochs': 2 # 100
+            'hyperparameter_optimisation_epochs': 2,  # 100 TODO set a higher value
         }
 
     logger.debug('LOAD DATA')
@@ -73,18 +75,26 @@ def run_full_pipeline(CONF=None):
     )
 
     logger.debug('EVALUATE PREDICTIVE MODEL')
-    # todo: predict for keras vs. predict_proba for sklearn
-    predicted = predictive_model.model.predict(drop_columns(test_df))
-    # todo: predict for keras vs. predict_proba for sklearn
-    scores = predictive_model.model.predict_proba(drop_columns(test_df))[:, 1]
+    if predictive_model.model_type is PredictionMethods.RANDOM_FOREST.value:
+        predicted = predictive_model.model.predict(drop_columns(test_df))
+        scores = predictive_model.model.predict_proba(drop_columns(test_df))[:, 1]
+    elif predictive_model.model_type is PredictionMethods.LSTM.value:
+        probabilities = predictive_model.model.predict(get_tensor(CONF, drop_columns(test_df)))
+        predicted = np.argmax(probabilities, axis=1)
+        scores = np.amax(probabilities, axis=1)
+
     actual = test_df['label']
+    if predictive_model.model_type is PredictionMethods.LSTM.value:
+        actual = np.argmax(np.array(actual.to_list()), axis=1)
+
     initial_result = evaluate(actual, predicted, scores)
 
     logger.debug('COMPUTE EXPLANATION')
-    explanations = explain(CONF['explanator'], predictive_model, feedback_df, encoder)
+    explanations = explain(CONF, predictive_model, feedback_df, encoder)
 
     logger.debug('COMPUTE FEEDBACK')
     feedback_10 = compute_feedback(
+        CONF,
         explanations,
         predictive_model,
         feedback_df,
@@ -100,7 +110,7 @@ def run_full_pipeline(CONF=None):
         feedback = {classes: feedback_10[classes][:top_k_threshold] for classes in feedback_10}
 
         retrain_results = []
-        for _ in range(10):
+        for _ in range(2):
 
             shuffled_train_df = randomise_features(feedback, train_df)
             shuffled_validate_df = randomise_features(feedback, validate_df)
@@ -118,9 +128,18 @@ def run_full_pipeline(CONF=None):
                 )
 
                 logger.debug('RETRAIN-- EVALUATE PREDICTIVE MODEL')
-                predicted = predictive_model.model.predict(drop_columns(test_df))
-                scores = predictive_model.model.predict_proba(drop_columns(test_df))[:, 1]
+                if predictive_model.model_type is PredictionMethods.RANDOM_FOREST.value:
+                    predicted = predictive_model.model.predict(drop_columns(test_df))
+                    scores = predictive_model.model.predict_proba(drop_columns(test_df))[:, 1]
+                elif predictive_model.model_type is PredictionMethods.LSTM.value:
+                    probabilities = predictive_model.model.predict(get_tensor(CONF, drop_columns(test_df)))
+                    predicted = np.argmax(probabilities, axis=1)
+                    scores = np.amax(probabilities, axis=1)
+
                 actual = test_df['label']
+                if predictive_model.model_type is PredictionMethods.LSTM.value:
+                    actual = np.argmax(np.array(actual.to_list()), axis=1)
+
                 retrain_results += [evaluate(actual, predicted, scores)]
             except Exception as e:
                 pass

@@ -2,13 +2,12 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
-import category_encoders
 
 PADDING_VALUE = '0'
 
 
 class Encoder:
-    def __init__(self, df: DataFrame = None, attribute_encoding=None):  #  EncodingTypeAttribute = None):
+    def __init__(self, df: DataFrame = None, attribute_encoding=None):
         self.attribute_encoding = attribute_encoding
         self._encoder = {}
         self._label_dict = {}
@@ -27,7 +26,6 @@ class Encoder:
                         self._label_dict_decoder[column] = dict(zip(transforms, classes))
 
                     elif attribute_encoding == "onehot":
-
                         padded_values = pd.concat([pd.Series([str(PADDING_VALUE)]), df[column].apply(lambda x: str(x))])
                         label_enc = pd.DataFrame(LabelEncoder().fit_transform(sorted(padded_values)))
                         self._encoder[column] = OneHotEncoder(sparse=False).fit(label_enc)
@@ -62,7 +60,7 @@ class Encoder:
     def decode_column(self, column, column_name) -> np.array:
         decoded_column = []
         if column_name in self._encoder:
-            decoded_column += [ self._label_dict_decoder[column_name].get(x, PADDING_VALUE) for x in column]
+            decoded_column += [self._label_dict_decoder[column_name].get(x, PADDING_VALUE) for x in column]
         else:
             decoded_column += list(column)
         return np.array(decoded_column)

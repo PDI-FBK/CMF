@@ -1,12 +1,24 @@
 import numpy as np
+import pandas as pd
 from pymining import itemmining
 
 from src.encoding.data_encoder import PADDING_VALUE
 from src.predictive_model.predictive_model import drop_columns
+from src.predictive_model.common import PredictionMethods, get_tensor
 
 
-def compute_feedback(explanations, predictive_model, test_df, encoder, top_k=None):
-    predicted = predictive_model.model.predict(drop_columns(test_df))
+def compute_feedback(CONF, explanations, predictive_model, test_df, encoder, top_k=None):
+
+    if predictive_model.model_type is PredictionMethods.RANDOM_FOREST.value:
+        predicted = predictive_model.model.predict(drop_columns(test_df))
+    elif predictive_model.model_type is PredictionMethods.LSTM.value:
+        probabilities = predictive_model.model.predict(get_tensor(CONF, drop_columns(test_df)))
+        indices = np.argmax(probabilities, axis=1)
+        onehot_enc = list(encoder._label_dict_decoder['label'].keys())
+        predicted = []
+        for i in indices:
+            predicted.append(onehot_enc[i])
+
     actual = test_df['label']
 
     trace_ids = test_df['trace_id']

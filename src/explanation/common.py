@@ -1,15 +1,17 @@
 from enum import Enum
 
 from src.explanation.wrappers.shap_wrapper import shap_explain
-# from src.explanation.wrappers.lrp_wrapper import lrp_explain
+from src.explanation.wrappers.lrp_wrapper import lrp_explain
 
 
 class ExplainerType(Enum):
     SHAP = 'shap'
+    LRP = 'lrp'
 
 
-def explain(explainer, predictive_model, test_df, encoder):
+def explain(CONF, predictive_model, test_df, encoder):
+    explainer = CONF['explanator']
     if explainer is ExplainerType.SHAP.value:
         return shap_explain(predictive_model, test_df, encoder)
-    else:
-        raise Exception('selected explainer not yet supported')
+    elif explainer is ExplainerType.LRP.value:
+        return lrp_explain(CONF, predictive_model, test_df, encoder)

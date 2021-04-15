@@ -7,7 +7,7 @@ import tensorflow as tf
 import numpy as np
 
 from src.evaluation.common import evaluate
-from src.predictive_model.common import PredictionMethods
+from src.predictive_model.common import PredictionMethods, get_tensor, shape_label_df
 
 logger = logging.getLogger(__name__)
 
@@ -16,38 +16,10 @@ def drop_columns(df: DataFrame) -> DataFrame:
     df = df.drop(['trace_id', 'label'], 1)
     return df
 
-def get_tensor(CONF, df: DataFrame):
-
-    tuple_lists = df.to_numpy().tolist()
-    max_enc_length = max([len(onehot_enc) for onehot_enc in tuple_lists[0]])
-
-    tensor = np.zeros((len(tuple_lists),
-                             CONF['prefix_length'],
-                             max_enc_length))
-
-    for i_prefix, prefix in enumerate(tuple_lists):
-        for i_tuple_enc, tuple_enc in enumerate(prefix):
-            for i_enc_value, enc_value in enumerate(tuple_enc):
-                tensor[i_prefix, i_tuple_enc, i_enc_value] = enc_value
-
-    return tensor
-
-def shape_label_df(df: DataFrame):
-
-    labels_list = df['label'].tolist()
-    labels = np.zeros((len(labels_list),
-                       len(labels_list[0])))
-
-    for i_label_enc, label_enc in enumerate(labels_list):
-        for i_enc_value, enc_value in enumerate(label_enc):
-            labels[i_label_enc, i_enc_value] = enc_value
-
-    return labels
-
 class PredictiveModel:
 
     def __init__(self, CONF, model_type, train_df, validate_df):
-        self.CONF = None
+        self.CONF = CONF
         self.model_type = model_type
         self.config = None
         self.model = None
@@ -73,6 +45,9 @@ class PredictiveModel:
             predicted, scores = self._output_model(model=model)
 
             actual = self.full_validate_df['label']
+            if self.CONF['predictive_model'] is PredictionMethods.LSTM.value:
+                actual = np.argmax(np.array(actual.to_list()), axis=1)
+
             result = evaluate(actual, predicted, scores, loss=target)
 
             return {
@@ -91,35 +66,32 @@ class PredictiveModel:
             }
 
     def _instantiate_model(self, config):
-        if self.model_type == PredictionMethods.RANDOM_FOREST.value:
+        if self.model_type is PredictionMethods.RANDOM_FOREST.value:
             model = RandomForestClassifier(**config)
 
-        elif self.model_type == PredictionMethods.LSTM.value:
-
+        elif self.model_type is PredictionMethods.LSTM.value:
             # input layer
             main_input = tf.keras.layers.Input(shape=(self.train_tensor.shape[1], self.train_tensor.shape[2]),
                                                name='main_input')
 
             # hidden layer
-            b1 = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(config['n_hidden_units'],
+            b1 = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(100,
                                                                     use_bias=True,
                                                                     implementation=1,
-                                                                    activation="tanh",
-                                                                    kernel_initializer='glorot_uniform',
+                                                                    activation=config['activation'],
+                                                                    kernel_initializer=config['kernel_initializer'],
                                                                     return_sequences=False,
                                                                     dropout=0.2))(main_input)
 
             # output layer
             output = tf.keras.layers.Dense(self.train_label.shape[1],
-                                               activation='softmax',
-                                               name='output',
-                                               kernel_initializer='glorot_uniform')(b1)
+                                           activation='softmax',
+                                           name='output',
+                                           kernel_initializer=config['kernel_initializer'])(b1)
 
             model = tf.keras.models.Model(inputs=[main_input], outputs=[output])
-            model.compile(loss={'output': 'categorical_crossentropy'}, optimizer='adam')
+            model.compile(loss={'output': 'categorical_crossentropy'}, optimizer=config['optimizer'])
             model.summary()
-
-
 
         else:
             raise Exception('unsupported model_type')
@@ -127,11 +99,10 @@ class PredictiveModel:
 
     def _fit_model(self, model):
 
-        if self.model_type == PredictionMethods.RANDOM_FOREST.value:
+        if self.model_type is PredictionMethods.RANDOM_FOREST.value:
             model.fit(self.train_df, self.full_train_df['label'])
 
-        elif self.model_type == PredictionMethods.LSTM.value:
-
+        elif self.model_type is PredictionMethods.LSTM.value:
             early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
             lr_reducer = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, verbose=0,
                                                               mode='auto', min_delta=0.0001, cooldown=0, min_lr=0)
@@ -141,17 +112,18 @@ class PredictiveModel:
                       verbose=1,
                       callbacks=[early_stopping, lr_reducer],
                       batch_size=128,
-                      epochs=100)
+                      epochs=1)
 
 
     def _output_model(self, model):
-        if self.model_type == PredictionMethods.RANDOM_FOREST.value:
+
+        if self.model_type is PredictionMethods.RANDOM_FOREST.value:
             predicted = model.predict(self.validate_df)
             scores = model.predict_proba(self.validate_df)[:, 1]
-
-        elif self.model_type == PredictionMethods.LSTM.value:
-            predicted = model.predict(self.validate_tensor)
-            scores = ""
+        elif self.model_type is PredictionMethods.LSTM.value:
+            probabilities = model.predict(self.validate_tensor)
+            predicted = np.argmax(probabilities, axis=1)
+            scores = np.amax(probabilities, axis=1)
         else:
             raise Exception('unsupported model_type')
 
